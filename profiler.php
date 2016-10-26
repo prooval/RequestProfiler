@@ -1,19 +1,35 @@
 <?php
 class RequestProfiler {
 
-    public function Build($file, $sortBy)
+    public static function Init()
+    {
+        $options = getopt('f:s:d:');
+        $file = (isset($options['f']) && !empty($options['f']))?
+            $options['f'] : '';
+
+        $sortBy = (isset($options['s']) && !empty($options['s']))?
+            $options['s'] : 'real_time';
+
+        $download = (isset($options['d']) && !empty($options['d']))?
+            $options['d'] : false;
+
+        $rp = new RequestProfiler();
+        $rp->Analyze($file, $sortBy, $download);
+    }
+
+    private function Analyze($file, $sortBy, $downloadFile)
     {
         if (!is_file($file) || !is_readable($file))
         {
             $this->Error('error: log file does not exist or is not readable');
-            $this->Error('usage: php profiler.php <file> <real_time|user_time|system_time|marked_time|memory_usage>');
+            $this->Error('usage: php profiler.php -f <file> -s <real_time|user_time|system_time|marked_time|memory_usage>');
             exit(1);
         }
 
         if (!in_array($sortBy, ['real_time', 'user_time', 'system_time', 'marked_time', 'memory_usage']))
         {
             $this->Error('error: sort option missing');
-            $this->Error('usage: php profiler.php <file> <real_time|user_time|system_time|marked_time|memory_usage>');
+            $this->Error('usage: php profiler.php -f <file> -s <real_time|user_time|system_time|marked_time|memory_usage>');
             exit(1);
         }
 
@@ -74,13 +90,39 @@ class RequestProfiler {
             $fields[] = $log->{$sortBy};
 
         array_multisort($fields, SORT_DESC, $uris, SORT_ASC, $analyzedLog);
-        $this->Output($analyzedLog);
+
+        ($downloadFile)?
+            $this->Download($analyzedLog, $downloadFile) : $this->Display($analyzedLog);
     }
 
-    private function Output($analyzed)
+    private function Display($analyzed)
     {
         $handle = fopen('php://stdout', 'w');
         if (!$handle) return;
+
+        array_walk($analyzed, function (&$stats, $uri) use ($handle) {
+            fputcsv($handle, [
+                $stats->real_time,
+                $stats->user_time,
+                $stats->system_time,
+                $stats->marked_time,
+                $stats->memory_usage,
+                $uri
+            ]);
+        });
+
+        fclose($handle);
+    }
+
+    private function Download($analyzed, $file)
+    {
+        $handle = fopen($file, 'w');
+        if (!$handle){
+            $this->Error('error: output file is not writable');
+            exit(1);
+        }
+
+        fputcsv($handle, ['Real Time', 'User Time', 'System Time', 'Marked Time', 'Memory Usage', 'Uri']);
 
         array_walk($analyzed, function (&$stats, $uri) use ($handle) {
             fputcsv($handle, [
@@ -110,8 +152,4 @@ class RequestProfiler {
 
 }
 
-$file = isset($argv[1])? $argv[1] : '';
-$sort_by = isset($argv[2])? $argv[2] : 'real_time';
-
-$profiler = new RequestProfiler();
-$profiler->Build($file, $sort_by);
+RequestProfiler::Init();
