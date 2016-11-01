@@ -22,15 +22,13 @@ class RequestProfiler {
         if (!is_file($file) || !is_readable($file))
         {
             $this->Error('error: log file does not exist or is not readable');
-            $this->Error('usage: php profiler.php -f <file> -s <real_time|user_time|system_time|marked_time|memory_usage>');
-            exit(1);
+            $this->Error('usage: php profiler.php -f <file> -s <real_time|user_time|system_time|marked_time|memory_usage>', true);
         }
 
         if (!in_array($sortBy, ['real_time', 'user_time', 'system_time', 'marked_time', 'memory_usage']))
         {
             $this->Error('error: sort option missing');
-            $this->Error('usage: php profiler.php -f <file> -s <real_time|user_time|system_time|marked_time|memory_usage>');
-            exit(1);
+            $this->Error('usage: php profiler.php -f <file> -s <real_time|user_time|system_time|marked_time|memory_usage>', true);
         }
 
         $analyzedLog = [];
@@ -98,7 +96,8 @@ class RequestProfiler {
     private function Display($analyzed)
     {
         $handle = fopen('php://stdout', 'w');
-        if (!$handle) return;
+        if (!$handle)
+            $this->Error('error: cannot open the output stream.', true);
 
         array_walk($analyzed, function (&$stats, $uri) use ($handle) {
             fputcsv($handle, [
@@ -117,10 +116,8 @@ class RequestProfiler {
     private function Download($analyzed, $file)
     {
         $handle = fopen($file, 'w');
-        if (!$handle){
-            $this->Error('error: output file is not writable');
-            exit(1);
-        }
+        if (!$handle)
+            $this->Error('error: output file is not writable', true);
 
         fputcsv($handle, ['Real Time', 'User Time', 'System Time', 'Marked Time', 'Memory Usage', 'Uri']);
 
@@ -138,7 +135,7 @@ class RequestProfiler {
         fclose($handle);
     }
 
-    private function Error($text)
+    private function Error($text, $critical = false)
     {
         flush();
 
@@ -148,6 +145,9 @@ class RequestProfiler {
         fclose($handle);
 
         flush();
+
+        if ($critical)
+            exit(1);
     }
 
 }
