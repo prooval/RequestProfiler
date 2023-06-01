@@ -10,7 +10,7 @@ $ php profiler.php -f <file> -s <sort-option>
 - file - must be a valid and readable file
 - sort-option - can be one of real_time|user_time|system_time|marked_time|memory_usage [Sorted by real-time by default]
 
-#####Downloading the output file
+##### Downloading the output file
 ```sh
 $ php profiler.php -f <file> -s <sort-option> -d filename.csv
 ```
